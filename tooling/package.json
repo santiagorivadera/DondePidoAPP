@@ -1,0 +1,28 @@
+{
+  "name": "dondepido-dev-tools",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Herramientas de desarrollo; no es la aplicacion DondePido",
+  "scripts": {
+    "playwright-cli": "playwright-cli"
+  },
+  "devDependencies": {
+    "@playwright/cli": "0.1.23",
+    "skillui": "1.3.4"
+  },
+  "overrides": {
+    "archiver-utils": {
+      "glob": "14.0.4"
+    },
+    "bundle-require": {
+      "esbuild": "0.28.2"
+    },
+    "skillui": {
+      "glob": "14.0.4",
+      "simple-git": "4.0.2"
+    },
+    "tsup": {
+      "esbuild": "0.28.2"
+    }
+  }
+}

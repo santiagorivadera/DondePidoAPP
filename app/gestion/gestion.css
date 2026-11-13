@@ -1,0 +1,68 @@
+.gestion {
+  display: grid;
+  gap: 1rem;
+}
+
+.gestion-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.gestion-nav .button {
+  min-height: 44px;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.gestion-nav .button[aria-current] {
+  background: var(--petroleo);
+  color: var(--white);
+  border-color: var(--petroleo);
+}
+
+.gestion form {
+  margin-block: 0.75rem;
+}
+
+.gestion fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.gestion details {
+  padding-block: 0.65rem;
+  border-block-end: 1px solid #d3ddd9;
+}
+
+.gestion summary {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.gestion-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.gestion-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.gestion-counts div {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d3ddd9;
+  border-radius: 0.5rem;
+}
+
+.gestion-counts dd {
+  margin-inline-start: 0;
+  font-weight: 700;
+}

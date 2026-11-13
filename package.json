@@ -1,0 +1,30 @@
+{
+  "name": "dondepido-app",
+  "private": true,
+  "version": "0.1.0",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "typecheck": "next typegen && tsc --noEmit",
+    "local:setup": "node scripts/setup-local.mjs",
+    "local:admin": "node scripts/grant-local-admin.mjs",
+    "local:dispatch-notices": "node scripts/dispatch-notices-local.mjs",
+    "test:onboarding": "node tests/onboarding.local.mjs",
+    "test:market": "node tests/onboarding.local.mjs --market",
+    "test:featured": "node tests/onboarding.local.mjs --featured"
+  },
+  "dependencies": {
+    "next": "16.4.6",
+    "pg": "8.23.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+.vercel/
+coverage/
+*.log
+.codex/verification-local/
+tooling/.venv-strix/
+.playwright-cli/
+strix_runs/
+tooling/reports/
+supabase/.temp/
+supabase/.branches/
