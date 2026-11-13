@@ -10,7 +10,14 @@ function getPool(): Pool {
     throw new HttpError(503, "SERVICIO_NO_DISPONIBLE", "Falta configurar la base de datos.");
   }
   if (!pool) {
-    pool = new Pool({ connectionString, connectionTimeoutMillis: 5000, statement_timeout: 10_000, max: 5 });
+    const ca = process.env.DONDEP_DB_CA_CERT;
+    pool = new Pool({
+      connectionString,
+      ...(ca ? { ssl: { ca, rejectUnauthorized: true } } : {}),
+      connectionTimeoutMillis: 5000,
+      statement_timeout: 10_000,
+      max: 5,
+    });
     pool.on("error", () => console.warn("Se descartó una conexión inactiva de PostgreSQL."));
   }
   return pool;
