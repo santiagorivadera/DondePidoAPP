@@ -124,11 +124,12 @@ export default function Account({ view, destination }: { view?: string; destinat
   }
 
   const verifiedFactor = user?.factors?.find((item) => item.factor_type === "totp" && item.status === "verified");
-  const factorId = factor?.id ?? verifiedFactor?.id;
+  const pendingFactor = user?.factors?.find((item) => item.factor_type === "totp" && item.status === "unverified");
+  const factorId = factor?.id ?? verifiedFactor?.id ?? pendingFactor?.id;
 
   async function enroll() {
     const result = await auth<{ id: string; totp: { secret: string } }>("/factors", {
-      token, body: { factor_type: "totp" },
+      token, body: { factor_type: "totp", friendly_name: "DondePido" },
     });
     setFactor({ id: result.id, secret: result.totp.secret });
   }
@@ -238,6 +239,9 @@ export default function Account({ view, destination }: { view?: string; destinat
               <>
                 {factor && (
                   <p>Agregá esta clave en tu aplicación autenticadora con el nombre DondePido. <code>{factor.secret}</code></p>
+                )}
+                {!factor && !verifiedFactor && pendingFactor && (
+                  <p>Hay una configuración pendiente. Ingresá el código actual de DondePido en tu app autenticadora.</p>
                 )}
                 {factorId ? (
                   <form onSubmit={(event) => void perform(event, verifyMfa)}>

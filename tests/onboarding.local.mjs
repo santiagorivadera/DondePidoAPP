@@ -148,6 +148,10 @@ async function run() {
 
   async function enrollMfa(account) {
     const factor = await auth('/factors', { factor_type: 'totp' }, account.token)
+    const accountWithPendingFactor = await auth('/user', undefined, account.token)
+    assert.ok(accountWithPendingFactor.factors?.some(
+      item => item.id === factor.id && item.factor_type === 'totp' && item.status === 'unverified',
+    ), 'An interrupted setup must expose the pending factor to the signed-in account')
     const factorPath = '/factors/' + checkedId(factor.id, 'Invalid Auth factor ID')
     const challenge = await auth(factorPath + '/challenge', {}, account.token)
     assert.ok(factor.totp?.secret, 'Auth did not return a TOTP secret')

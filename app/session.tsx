@@ -62,6 +62,12 @@ async function authRequest<T>(path: string, options: AuthOptions = {}): Promise<
     if (code === "email_not_confirmed") throw new Error("Confirmá el correo antes de ingresar.");
     if (code === "invalid_credentials") throw new Error("Revisá el correo y la contraseña.");
     if (code === "weak_password") throw new Error("Elegí una contraseña más segura.");
+    if (code === "mfa_verification_failed") {
+      throw new Error("El código no coincide. Usá el código actual de DondePido en tu app autenticadora y revisá que el celular tenga la hora automática.");
+    }
+    if (code === "mfa_factor_name_conflict") {
+      throw new Error("Ya hay un segundo factor configurado o pendiente. Recargá esta página para continuar con ese factor.");
+    }
     if (response.status === 429) throw new Error("Esperá antes de volver a intentar.");
     throw new Error("No pudimos completar la operación de acceso. Revisá los datos e intentá de nuevo.");
   }
