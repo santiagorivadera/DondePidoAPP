@@ -45,14 +45,14 @@ function checkedId(id, description) {
   return id
 }
 
-async function request(url, { token, body, apiKey, redirect = 'error' } = {}) {
+async function request(url, { token, body, apiKey, method, redirect = 'error' } = {}) {
   const headers = new Headers()
   if (apiKey) headers.set('apikey', apiKey)
   if (token) headers.set('authorization', 'Bearer ' + token)
   if (body !== undefined) headers.set('content-type', 'application/json')
   return fetch(url, {
     headers,
-    method: body === undefined ? 'GET' : 'POST',
+    method: method ?? (body === undefined ? 'GET' : 'POST'),
     body: body === undefined ? undefined : JSON.stringify(body),
     redirect,
     signal: AbortSignal.timeout(10000),
@@ -147,11 +147,17 @@ async function run() {
   }
 
   async function enrollMfa(account) {
-    const factor = await auth('/factors', { factor_type: 'totp' }, account.token)
+    const settings = { factor_type: 'totp', friendly_name: 'DondePido' }
+    const pending = await auth('/factors', settings, account.token)
     const accountWithPendingFactor = await auth('/user', undefined, account.token)
     assert.ok(accountWithPendingFactor.factors?.some(
-      item => item.id === factor.id && item.factor_type === 'totp' && item.status === 'unverified',
+      item => item.id === pending.id && item.factor_type === 'totp' && item.status === 'unverified',
     ), 'An interrupted setup must expose the pending factor to the signed-in account')
+    const reset = await request(authOrigin + '/auth/v1/factors/' + checkedId(pending.id, 'Invalid pending factor ID'), {
+      method: 'DELETE', apiKey, token: account.token,
+    })
+    assert.ok(reset.ok, 'A password session must be able to restart an unverified setup')
+    const factor = await auth('/factors', settings, account.token)
     const factorPath = '/factors/' + checkedId(factor.id, 'Invalid Auth factor ID')
     const challenge = await auth(factorPath + '/challenge', {}, account.token)
     assert.ok(factor.totp?.secret, 'Auth did not return a TOTP secret')

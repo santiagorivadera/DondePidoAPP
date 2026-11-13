@@ -134,6 +134,17 @@ export default function Account({ view, destination }: { view?: string; destinat
     setFactor({ id: result.id, secret: result.totp.secret });
   }
 
+  async function restartMfa() {
+    const pendingId = factor?.id ?? pendingFactor?.id;
+    if (verifiedFactor || !pendingId) return;
+    await auth(`/factors/${encodeURIComponent(pendingId)}`, { method: "DELETE", token });
+    setFactor(null);
+    setUser((account) => account ? {
+      ...account, factors: account.factors?.filter((item) => item.id !== pendingId),
+    } : account);
+    setMessage("Configuración pendiente eliminada. Tocá Configurar segundo factor y agregá la nueva clave en tu autenticador.");
+  }
+
   async function verifyMfa(form: FormData) {
     if (!factorId) return;
     const challenge = await auth<{ id: string }>(`/factors/${encodeURIComponent(factorId)}/challenge`, { token, body: {} });
@@ -254,6 +265,11 @@ export default function Account({ view, destination }: { view?: string; destinat
                 ) : (
                   <form onSubmit={(event) => void perform(event, enroll)}>
                     <button className="button" type="submit" disabled={busy || !user}>Configurar segundo factor</button>
+                  </form>
+                )}
+                {!verifiedFactor && (factor || pendingFactor) && (
+                  <form onSubmit={(event) => void perform(event, restartMfa)}>
+                    <button className="button secondary" type="submit" disabled={busy}>Reiniciar configuración pendiente</button>
                   </form>
                 )}
               </>

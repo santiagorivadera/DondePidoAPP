@@ -17,7 +17,7 @@ export type Session = {
   email: string;
   recovery: boolean;
 };
-type AuthOptions = { method?: "GET" | "POST" | "PUT"; token?: string; body?: unknown };
+type AuthOptions = { method?: "GET" | "POST" | "PUT" | "DELETE"; token?: string; body?: unknown };
 type SessionContext = {
   session: Session | null;
   ready: boolean;
