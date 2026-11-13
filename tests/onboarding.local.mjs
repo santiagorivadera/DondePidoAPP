@@ -272,22 +272,21 @@ async function run() {
       'Replaying the commercial registration must return the same business')
 
     const publication = { businessId, pickup: true, delivery: false, confirmPublicContact: true }
-    await onboarding(owner, 'business.publish', publication, [403])
     const otherMfa = await enrollMfa(other)
+    await onboarding(other, 'business.publish', publication, [403])
     await onboarding(otherMfa, 'business.publish', publication, [403])
     assert.deepEqual(await onboarding(otherMfa, 'business.mine'), [],
       'A reinforced session still cannot see businesses without a membership')
-    const ownerMfa = await enrollMfa(owner)
-    const owned = await onboarding(ownerMfa, 'business.mine')
+    const owned = await onboarding(owner, 'business.mine')
     assert.equal(owned.length, 1, 'A repeated registration must create one owner membership')
     assert.equal(owned[0].id, businessId)
     assert.equal(owned[0].publication_status, 'draft', 'Completing a registration must not publish the business')
-    await onboarding(ownerMfa, 'business.publish', publication, [409])
+    await onboarding(owner, 'business.publish', publication, [409])
 
     const hours = { businessId, hours: [{ weekday: 1, intervals: [[540, 780], [960, 1200]] }] }
-    await onboarding(owner, 'business.hours', hours, [403])
-    await onboarding(ownerMfa, 'business.hours', hours)
-    await onboarding(ownerMfa, 'business.hours', hours)
+    await onboarding(other, 'business.hours', hours, [403])
+    await onboarding(owner, 'business.hours', hours)
+    await onboarding(owner, 'business.hours', hours)
     const weekly = localRows(
       "select weekday, opening_minutes::text as intervals from dondepido.business_weekly_hours"
         + " where business_id = '" + businessId + "';",
@@ -295,9 +294,9 @@ async function run() {
     assert.deepEqual(weekly, [{ weekday: 1, intervals: '{[540,780),[960,1200)}' }],
       'Repeating the hours update must retain one schedule for the local day')
 
-    await onboarding(ownerMfa, 'business.publish', publication)
+    await onboarding(owner, 'business.publish', publication)
 
-    const [published] = await onboarding(ownerMfa, 'business.mine')
+    const [published] = await onboarding(owner, 'business.mine')
     assert.equal(published.publication_status, 'published')
     assert.equal(published.offers_pickup, true)
     assert.equal(published.offers_delivery, false)
@@ -338,7 +337,7 @@ async function run() {
         assert.match(dispatchNotice(id), /Capturados: 0/)
         return message.Text
       }
-      const demo = await testMarket({ market, onboarding, ownerMfa, buyer: other, adminMfa, businessId, cityId, logo, noticeCount, verifyNotice })
+      const demo = await testMarket({ market, onboarding, owner, buyer: other, adminMfa, businessId, cityId, logo, noticeCount, verifyNotice })
       if (process.argv.includes('--mobile-fixtures')) {
         const fixture = (account, aal) => ({
           access_token: account.token, refresh_token: account.session.refresh_token,
@@ -348,12 +347,12 @@ async function run() {
         const dir = new URL('../.playwright-cli/', import.meta.url)
         mkdirSync(dir, { recursive: true })
         writeFileSync(new URL('demo-fixtures.json', dir), JSON.stringify({
-          appOrigin, ...demo, buyer: fixture(other, 'aal1'), owner: fixture(ownerMfa, 'aal2'),
+          appOrigin, ...demo, buyer: fixture(other, 'aal1'), owner: fixture(owner, 'aal1'),
         }), { flag: 'wx' })
       }
     }
     if (process.argv.includes('--featured')) {
-      await testFeatured({ request, appOrigin, onboarding, ownerMfa, adminMfa, business: published, png })
+      await testFeatured({ request, appOrigin, onboarding, ownerMfa: otherMfa, adminMfa, business: published, png })
     }
   } finally {
     localSql("delete from dondepido.admin_roles where user_id = '" + admin.id + "';")

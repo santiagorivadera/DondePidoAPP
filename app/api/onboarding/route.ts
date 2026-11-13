@@ -150,7 +150,6 @@ async function execute(actor: Actor, token: string, input: Record<string, unknow
     }
 
     case "business.mine":
-      requireMfa(actor);
       return runOnboarding<unknown[]>(actor, `
         select coalesce(json_agg(items order by items.created_at desc, items.id desc), '[]'::json) as data
         from (
@@ -167,7 +166,6 @@ async function execute(actor: Actor, token: string, input: Record<string, unknow
       `, [actor.id]);
 
     case "business.publish":
-      requireMfa(actor);
       if (typeof input.pickup !== "boolean" || typeof input.delivery !== "boolean" ||
           (!input.pickup && !input.delivery) || input.confirmPublicContact !== true) {
         throw new HttpError(400, "VALIDACION", "Elegí una modalidad y confirmá el contacto comercial público.");
@@ -180,7 +178,6 @@ async function execute(actor: Actor, token: string, input: Record<string, unknow
       return null;
 
     case "business.hours":
-      requireMfa(actor);
       await runOnboarding(actor, "select dondepido.set_business_weekly_hours($1::uuid, $2::jsonb) as data", [
         uuid(input.businessId, "comercio"),
         JSON.stringify(normalizeWeeklyHours(input.hours)),

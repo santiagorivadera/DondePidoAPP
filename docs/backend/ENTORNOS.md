@@ -48,7 +48,7 @@ El stack previo de otro proyecto (`ae-phonestore`) ocupa los puertos estándar 5
 
 Versionar la configuración, SQL, pruebas y documentación en Git. Mantener copias del código fuente fuera del workspace en `C:/Proyectos/DondePidoAPP-backups`, limitadas a fuentes, SQL, tests y docs. No incluir datos, volúmenes, archivos `.env`, credenciales ni dumps de producción en ese respaldo. Probar cada migración en local y en el entorno de validación aislado antes de una liberación autorizada. La migración a producción requiere revisión de Database y QA, autorización, respaldo verificado y un plan de recuperación que contemple cambios irreversibles y compatibilidad de versiones. Un rollback de aplicación por sí solo no revierte cambios de datos.
 
-La base local incluye el núcleo y el alta comercial. El registro usa correo y contraseña, la verificación del teléfono usa un SMS simulado en Mailpit y las acciones de administración y publicación requieren MFA. El [flujo de alta local](ALTA_LOCAL.md) documenta el arranque de Next.js y las pruebas de base y de punta a punta.
+La base local incluye el núcleo y el alta comercial. El registro usa correo y contraseña, la verificación del teléfono usa un SMS simulado en Mailpit y las acciones de administración requieren MFA. El [flujo de alta local](ALTA_LOCAL.md) documenta el arranque de Next.js y las pruebas de base y de punta a punta.
 
 Se creó una copia revisable previa al runtime en `C:/Proyectos/DondePidoAPP-backups/2026-11-12-B1-pre-runtime`. Incluye `docs/`, `supabase/config.toml` y las dos migraciones SQL. Excluye Git, datos, volúmenes, `.env`, credenciales e instalaciones. Esta copia no es un respaldo de base de datos ni restaura la pila local.
 

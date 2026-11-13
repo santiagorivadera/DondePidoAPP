@@ -18,7 +18,7 @@ npm run dev
 
 ## Operaciones
 
-Enviar JSON con `action`. Las respuestas exitosas usan `data`. `reference` y `application.request` son públicas. Para las demás, enviar `Authorization: Bearer <token de Supabase Auth>`. Las acciones de administración, horario y publicación requieren MFA.
+Enviar JSON con `action`. Las respuestas exitosas usan `data`. `reference` y `application.request` son públicas. Para las demás, enviar `Authorization: Bearer <token de Supabase Auth>`. Las acciones de administración requieren MFA.
 
 | Acción | Datos y efecto |
 | --- | --- |
@@ -33,7 +33,7 @@ Enviar JSON con `action`. Las respuestas exitosas usan `data`. `reference` y `ap
 | `application.decide` | `applicationId`, `decision`, `reason` y `cityId` al aprobar. Las decisiones son `approved`, `rejected` o `revoked` |
 | `logo.upload` | `mimeType` y `base64`. Devuelve la referencia privada del logo PNG, JPEG o WebP, de hasta 256 KiB |
 | `application.complete` | `applicationId`, `name`, `address` y la referencia `logo`. Crea la ficha y su membresía una sola vez |
-| `business.mine` | Lista las fichas de las membresías activas de la cuenta con MFA |
+| `business.mine` | Lista las fichas de las membresías activas de la cuenta |
 | `business.hours` | `businessId` y `hours` con días ISO de 1 a 7 y tramos `[inicio, fin]` en minutos del día. Un fin menor al inicio indica que el tramo termina al día siguiente |
 | `business.publish` | `businessId`, `pickup`, `delivery` y `confirmPublicContact: true`. Publica la ficha con el número verificado del titular como contacto comercial, previa autorización explícita |
 | `business.controls` | `businessId`, `expectedVersion`, `hidden`, `relevance` o ambos y `note` opcional. Ajusta visibilidad y relevancia con autorización administrativa |

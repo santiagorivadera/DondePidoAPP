@@ -21,8 +21,8 @@ where id in ('10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-00
 
 insert into dondepido.verified_phones (user_id, phone_e164, verified_at)
 values
-  ('10000000-0000-0000-0000-000000000001', '+12025550101', now()),
-  ('10000000-0000-0000-0000-000000000002', '+12025550102', now());
+  ('10000000-0000-0000-0000-000000000001', '+12025550197', now()),
+  ('10000000-0000-0000-0000-000000000002', '+12025550198', now());
 
 insert into dondepido.admin_roles (user_id)
 values ('10000000-0000-0000-0000-000000000003');
@@ -94,13 +94,14 @@ select results_eq(
   $$select profiles.user_id::text, phones.phone_e164
     from dondepido.profiles as profiles
     join dondepido.verified_phones as phones using (user_id)$$,
-  $$values ('10000000-0000-0000-0000-000000000001', '+12025550101')$$,
+  $$values ('10000000-0000-0000-0000-000000000001', '+12025550197')$$,
   'A personal session can read its own profile and verified phone only'
 );
 
-select is_empty(
-  'select id from dondepido.businesses',
-  'An operator without a reinforced session cannot read private business rows'
+select results_eq(
+  'select name from dondepido.businesses order by name',
+  array['Local visible'],
+  'A password session can read only the business covered by its active membership'
 );
 
 set local dondepido.actor_aal = 'aal2';
@@ -123,6 +124,7 @@ select is_empty(
 );
 
 set local dondepido.actor_id = '10000000-0000-0000-0000-000000000002';
+set local dondepido.actor_aal = 'aal1';
 
 select is_empty(
   'select id from dondepido.businesses',

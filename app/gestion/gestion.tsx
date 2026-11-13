@@ -70,7 +70,7 @@ export function Management({ view, requestedBusiness }: { view: ManagementView; 
   const businessView = businessViews.find(([id]) => id === view);
   const adminView = adminViews.find(([id]) => id === view);
   const authorized = Boolean(token && loadedToken === token);
-  const canManage = authorized && reinforced && businesses.length > 0;
+  const canManage = authorized && businesses.length > 0;
   const canAdmin = authorized && reinforced && inbox !== null;
   const accessLoaded = ready && (!token || authorized);
 
@@ -90,7 +90,7 @@ export function Management({ view, requestedBusiness }: { view: ManagementView; 
     async function load() {
       const [own, commerce, queue, controls] = await Promise.allSettled([
         requestApi<Application[]>("onboarding", { action: "application.mine" }, token),
-        reinforced ? requestApi<Business[]>("onboarding", { action: "business.mine" }, token) : [],
+        requestApi<Business[]>("onboarding", { action: "business.mine" }, token),
         reinforced ? requestApi<Application[]>("onboarding", { action: "application.inbox" }, token) : null,
         reinforced ? requestApi<{ businesses: ControlBusiness[] }>("market", { action: "admin.businesses" }, token) : null,
       ] as const);
@@ -140,14 +140,14 @@ export function Management({ view, requestedBusiness }: { view: ManagementView; 
       {(!ready || (token && (loading || loadedToken !== token))) && <p role="status">Cargando gestión…</p>}
       {referenceError && (view === "alta" || view === "administracion/solicitudes") && <p className="error" role="alert">{referenceError}</p>}
       {authorized && errors.map((message) => <p className="error" key={message} role="alert">{message}</p>)}
-      {accessLoaded && view !== "alta" && !reinforced && (
+      {accessLoaded && ((!token && view !== "alta") || (adminView && !reinforced)) && (
         <section className="panel">
           <h2>Acceso a {businessView?.[1].toLowerCase() ?? "administración"}</h2>
           <p>{token ? "Verificá el segundo factor para acceder a esta sección." : "Ingresá a tu cuenta para continuar."}</p>
           <Link className="button" href={token ? "/cuenta?vista=seguridad" : "/cuenta"}>Ir a mi cuenta</Link>
         </section>
       )}
-      {authorized && reinforced && businessView && businessesLoaded && !canManage && !loading && (
+      {authorized && businessView && businessesLoaded && !canManage && !loading && (
         <section className="panel">
           <h2>{businessView[1]}</h2>
           <p>Tu cuenta todavía no tiene un comercio habilitado.</p>
@@ -191,7 +191,7 @@ export function Management({ view, requestedBusiness }: { view: ManagementView; 
               {applications.map((application) => <li key={application.id}>{sectorName(application.sector_code)} · {applicationsStatus[application.status] ?? application.status}</li>)}
             </ul>}
             {approved.length > 0 && (
-              <ActionForm success="Ficha creada en borrador. Completá la verificación en dos pasos para publicar." submit={async (form) => {
+              <ActionForm success="Ficha creada en borrador. Entrá a la ficha para completar los datos y publicarla." submit={async (form) => {
                 const file = form.get("logo");
                 if (!(file instanceof File) || file.size === 0 || file.size > 256 * 1024) {
                   throw new Error("Elegí un logo de hasta 256 KiB.");
@@ -217,7 +217,6 @@ export function Management({ view, requestedBusiness }: { view: ManagementView; 
               </ActionForm>
             )}
           </section>
-          {!reinforced && <p><Link className="button secondary" href="/cuenta?vista=seguridad">Verificar segundo factor para gestionar</Link></p>}
         </>
       )}
       {token && canManage && businessView && (

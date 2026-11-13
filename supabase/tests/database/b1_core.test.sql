@@ -16,11 +16,11 @@ values
   ('10000000-0000-0000-0000-000000000002', 'Cliente', 'Dos');
 
 insert into dondepido.verified_phones (user_id, phone_e164, verified_at)
-values ('10000000-0000-0000-0000-000000000001', '+12025550101', now());
+values ('10000000-0000-0000-0000-000000000001', '+12025550197', now());
 
 select throws_ok(
   $$insert into dondepido.verified_phones (user_id, phone_e164, verified_at)
-    values ('10000000-0000-0000-0000-000000000002', '+12025550101', now())$$,
+    values ('10000000-0000-0000-0000-000000000002', '+12025550197', now())$$,
   '23505', null,
   'A verified number cannot belong to two profiles'
 );
