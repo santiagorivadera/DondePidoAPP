@@ -176,7 +176,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             if (["/", "/explorar", "/carrito", "/pedidos"].includes(pending.destination)) {
               account.searchParams.set("next", pending.destination);
             }
-            if (pending.purpose === "signup") account.searchParams.set("vista", "telefono");
             if (location.pathname + location.search !== account.pathname + account.search) location.replace(account);
             return;
           }

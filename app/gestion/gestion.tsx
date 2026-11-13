@@ -8,6 +8,7 @@ import { HoursForm } from "./horarios";
 import { amountInMinor, CatalogPanel, ReferenceForm } from "./catalogo";
 import { IndicatorsPanel, OrdersPanel } from "./pedidos";
 import { FeaturedPanel } from "./featured";
+import { ApprovedApplications } from "./aprobadas";
 import { adminViews, businessViews, type ManagementView } from "./vistas";
 import "./gestion.css";
 
@@ -34,6 +35,7 @@ type Business = ControlBusiness & {
   accepting_orders: boolean;
   offers_pickup: boolean;
   offers_delivery: boolean;
+  verified_contact: string | null;
   delivery_fee?: number | null;
   weekly_hours?: { weekday: number; intervals: [number, number][] }[];
 };
@@ -206,7 +208,7 @@ export function Management({ view, requestedBusiness }: { view: ManagementView; 
                 refresh();
               }}>
                 <h3>Completar ficha comercial</h3>
-                <p className="muted">Para completar el alta, <Link href="/cuenta?vista=telefono">verificá tu teléfono</Link>.</p>
+                <p className="muted">Podés crear el borrador ahora. Para publicar, administración debe validar el número del comercio por WhatsApp o llamada.</p>
                 <label className="field">Solicitud aprobada<select name="applicationId" required>
                   {approved.map((application) => <option key={application.id} value={application.id}>{sectorName(application.sector_code)}</option>)}
                 </select></label>
@@ -262,6 +264,9 @@ export function Management({ view, requestedBusiness }: { view: ManagementView; 
                 </details>
               ))}
             </>
+          )}
+          {view === "administracion/aprobadas" && (
+            <ApprovedApplications token={token} reference={reference} />
           )}
           {view === "administracion/visibilidad" && (
             <>
@@ -327,17 +332,20 @@ function BusinessPanel({ business, token, refresh }: { business: Business; token
             </details>
             <details>
               <summary>{business.publication_status === "published" ? "Actualizar modalidades" : "Publicar ficha"}</summary>
-              <ActionForm success="Ficha publicada." submit={async (form) => {
+              {!business.verified_contact ? (
+                <p>Administración debe validar el teléfono comercial por WhatsApp o llamada. Después, actualizá la ficha para publicar.</p>
+              ) : <ActionForm key={business.verified_contact} success="Ficha publicada." submit={async (form) => {
                 await requestApi("onboarding", { action: "business.publish", businessId: business.id,
-                  pickup: form.has("pickup"), delivery: form.has("delivery"), confirmPublicContact: form.has("confirm") }, token);
+                  pickup: form.has("pickup"), delivery: form.has("delivery"),
+                  expectedContact: business.verified_contact, confirmPublicContact: form.has("confirm") }, token);
                 refresh();
               }}>
-                <p className="muted">Guardá los horarios antes de publicar. Al confirmar, el teléfono verificado queda como contacto público.</p>
+                <p className="muted">Guardá los horarios antes de publicar.</p>
                 <label><input type="checkbox" name="pickup" defaultChecked={business.offers_pickup} /> Retiro</label>{" "}
                 <label><input type="checkbox" name="delivery" defaultChecked={business.offers_delivery} /> Envío</label>
-                <label className="field"><span><input type="checkbox" name="confirm" required /> Confirmo que mi teléfono será el contacto público del comercio.</span></label>
+                <label className="field"><span><input type="checkbox" name="confirm" required /> Confirmo que {business.verified_contact} será el contacto del comercio para sus clientes.</span></label>
                 <FormButton>Publicar ficha</FormButton>
-              </ActionForm>
+              </ActionForm>}
             </details>
           </>
         )}

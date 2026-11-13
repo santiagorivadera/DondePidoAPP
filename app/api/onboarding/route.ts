@@ -3,7 +3,7 @@ import { runOnboarding } from "../../../src/server/db";
 import { normalizeWeeklyHours } from "../../../src/server/hours";
 import { HttpError, isRecord, readJsonObject, requiredText, uuid } from "../../../src/server/http";
 import { uploadLogo, verifyLogo } from "../../../src/server/logo";
-import { issuePhoneChallenge, verifyPhoneChallenge } from "../../../src/server/phone";
+import { issuePhoneChallenge, normalizePhone, verifyPhoneChallenge } from "../../../src/server/phone";
 
 export const runtime = "nodejs";
 
@@ -134,6 +134,71 @@ async function execute(actor: Actor, token: string, input: Record<string, unknow
       return null;
     }
 
+    case "application.approved": {
+      requireMfa(actor);
+      const page = input.page ?? 0;
+      if (typeof page !== "number" || !Number.isSafeInteger(page) || page < 0 || page > 1_000_000) {
+        throw new HttpError(400, "VALIDACION", "Revisá la página solicitada.");
+      }
+      const result = await runOnboarding<unknown[] | null>(actor, `
+        select case when dondepido.actor_is_admin() then (
+          select coalesce(json_agg(items order by items.created_at desc, items.id desc), '[]'::json)
+          from (
+            select a.id, a.email, a.sector_code, a.observation, a.city_id, a.created_at,
+                   case when a.status = 'approved' and a.expires_at <= statement_timestamp()
+                        then 'expired' else a.status end as status,
+                   b.id as business_id, b.name, b.address, b.publication_status,
+                   a.verified_contact_phone, a.verified_contact_at, a.contact_verification_method,
+                   coalesce(b.admin_hidden, a.admin_suspended) as suspended
+            from dondepido.business_applications a
+            left join dondepido.businesses b on b.application_id = a.id
+            where a.status in ('approved', 'consumed')
+            order by a.created_at desc, a.id desc
+            limit 31 offset $1::integer
+          ) as items
+        ) end as data
+      `, [page * 30]);
+      if (result === null) throw denied();
+      return { items: result.slice(0, 30), hasNext: result.length > 30 };
+    }
+
+    case "application.edit": {
+      requireMfa(actor);
+      const email = requiredText(input.email, "correo", 254).toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+$/.test(email)) {
+        throw new HttpError(400, "VALIDACION", "Ingresá un correo válido.");
+      }
+      await runOnboarding(actor, "select dondepido.edit_approved_application($1::uuid, $2, $3, $4, $5::uuid, $6, $7) as data", [
+        uuid(input.applicationId, "solicitud"), email, applicationSector(input.sector),
+        requiredText(input.observation, "observación", 2000), uuid(input.cityId, "ciudad"),
+        input.name == null ? null : requiredText(input.name, "nombre del comercio", 160),
+        input.address == null ? null : requiredText(input.address, "dirección", 400),
+      ]);
+      return null;
+    }
+
+    case "application.suspend":
+      requireMfa(actor);
+      if (typeof input.suspended !== "boolean") {
+        throw new HttpError(400, "VALIDACION", "Revisá el estado del comercio.");
+      }
+      await runOnboarding(actor, "select dondepido.set_application_suspension($1::uuid, $2) as data", [
+        uuid(input.applicationId, "solicitud"), input.suspended,
+      ]);
+      return null;
+
+    case "application.verify_contact": {
+      requireMfa(actor);
+      const method = input.method;
+      if (input.confirmed !== true || (method !== "call" && method !== "whatsapp")) {
+        throw new HttpError(400, "VALIDACION", "Confirmá que comprobaste el número y elegí cómo lo verificaste.");
+      }
+      await runOnboarding(actor, "select dondepido.verify_application_contact($1::uuid, $2, $3) as data", [
+        uuid(input.applicationId, "solicitud"), normalizePhone(input.phone), method,
+      ]);
+      return null;
+    }
+
     case "logo.upload":
       return uploadLogo(actor, token, input);
 
@@ -156,6 +221,7 @@ async function execute(actor: Actor, token: string, input: Record<string, unknow
           select b.id, b.name, b.address, b.sector_code, b.city_id, b.publication_status,
                  b.admin_hidden, b.accepting_orders, b.offers_pickup, b.offers_delivery, b.delivery_fee,
                  b.relevance, b.control_version::text,
+                 dondepido.business_verified_contact(b.id) as verified_contact,
                  b.created_at, m.role
           from dondepido.businesses as b
           join dondepido.business_memberships as m on m.business_id = b.id
@@ -170,10 +236,11 @@ async function execute(actor: Actor, token: string, input: Record<string, unknow
           (!input.pickup && !input.delivery) || input.confirmPublicContact !== true) {
         throw new HttpError(400, "VALIDACION", "Elegí una modalidad y confirmá el contacto comercial público.");
       }
-      await runOnboarding(actor, "select dondepido.publish_business($1::uuid, $2, $3) as data", [
+      await runOnboarding(actor, "select dondepido.publish_business($1::uuid, $2, $3, $4) as data", [
         uuid(input.businessId, "comercio"),
         input.pickup,
         input.delivery,
+        input.expectedContact == null ? null : normalizePhone(input.expectedContact),
       ]);
       return null;
 
@@ -217,6 +284,12 @@ async function execute(actor: Actor, token: string, input: Record<string, unknow
 function errorForResponse(error: unknown): HttpError {
   if (error instanceof HttpError) return error;
   const code = isRecord(error) ? error.code : undefined;
+  if (code === "55000" && isRecord(error) && error.message === "business_classification_in_use") {
+    return new HttpError(409, "ESTADO_EN_CONFLICTO", "No se puede cambiar el rubro si el comercio tiene productos, ni la ciudad si ya tiene pedidos.");
+  }
+  if (code === "55000" && isRecord(error) && error.message === "Verified business contact is required") {
+    return new HttpError(409, "CONTACTO_PENDIENTE", "Pedile a administración que valide el teléfono comercial por WhatsApp o llamada antes de publicar.");
+  }
   switch (code) {
     case "42501":
       return denied();

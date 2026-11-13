@@ -7,6 +7,7 @@ export const businessViews = [
 
 export const adminViews = [
   ["administracion/solicitudes", "Solicitudes"],
+  ["administracion/aprobadas", "Aprobadas"],
   ["administracion/visibilidad", "Visibilidad"],
   ["administracion/destacados", "Destacados"],
   ["administracion/referencias", "Referencias"],

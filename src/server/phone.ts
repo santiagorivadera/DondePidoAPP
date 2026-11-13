@@ -3,7 +3,7 @@ import { supabaseOrigin, type Actor } from "./auth";
 import { runOnboarding } from "./db";
 import { HttpError, isLoopback, requiredText, serviceFetch, serviceOrigin, uuid } from "./http";
 
-function normalizePhone(value: unknown): string {
+export function normalizePhone(value: unknown): string {
   const phone = requiredText(value, "teléfono", 40).replace(/[\s().-]/g, "");
   if (!/^\+[1-9][0-9]{1,14}$/.test(phone)) {
     throw new HttpError(400, "VALIDACION", "Ingresá el teléfono con código de país.");

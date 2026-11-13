@@ -18,6 +18,7 @@ type Order = {
   mode: "delivery" | "pickup";
   address: string | null;
   pickup_address: string | null;
+  customer_phone?: string | null;
   delivery_fee: number | null;
   reason: string | null;
   window: string | null;
@@ -161,6 +162,10 @@ function OrderCard({ order, token, refresh }: { order: Order; token: string; ref
       <summary>Pedido {order.id.slice(0, 8)} · {states[state] ?? state}</summary>
       {order.created_at && <p>{new Date(order.created_at).toLocaleString("es-AR")}</p>}
       <p>{order.mode === "delivery" ? "Envío" : "Retiro"}{address ? ` · ${address}` : ""}</p>
+      {order.customer_phone && /^\+[1-9][0-9]{1,14}$/.test(order.customer_phone) && (
+        <a className="button secondary" href={`https://wa.me/${order.customer_phone.slice(1)}`}
+          target="_blank" rel="noopener noreferrer">Contactar al cliente por WhatsApp</a>
+      )}
       {!!order.items.length && <ul>{order.items.map((line) => (
         <li key={line.offer_id}>{line.quantity} × {line.name}</li>
       ))}</ul>}

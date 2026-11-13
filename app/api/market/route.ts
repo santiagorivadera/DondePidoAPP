@@ -1,5 +1,6 @@
 import { authenticate } from "../../../src/server/auth";
 import { runOnboarding } from "../../../src/server/db";
+import { normalizePhone } from "../../../src/server/phone";
 import { HttpError, isRecord, readJsonObject } from "../../../src/server/http";
 
 export const runtime = "nodejs";
@@ -66,6 +67,9 @@ export async function POST(request: Request): Promise<Response> {
       throw new HttpError(400, "VALIDACION", "Elegí una operación válida.");
     }
     const { actor } = await authenticate(request);
+    if (action === "orders" && operation === "submit" && values.contactPhone != null && values.contactPhone !== "") {
+      values.contactPhone = normalizePhone(values.contactPhone);
+    }
     if (action === "orders" && operation === "stats") {
       if (typeof values.businessId !== "string" || !values.businessId) {
         throw new HttpError(400, "VALIDACION", "Elegí un comercio válido.");

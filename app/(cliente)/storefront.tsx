@@ -62,6 +62,7 @@ type History = {
   mode: "pickup" | "delivery";
   address?: string | null;
   pickup_address?: string | null;
+  business_phone?: string | null;
   reason?: string | null;
   items: { offer_id: string; name: string; quantity: number; total: number }[];
   proposal?: {
@@ -154,6 +155,7 @@ export default function Storefront() {
   const [fulfillment, setFulfillment] = useState<Record<string, Fulfillment>>({});
   const [locationMessage, setLocationMessage] = useState<Record<string, string>>({});
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [contactPhone, setContactPhone] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [submitUncertain, setSubmitUncertain] = useState(false);
@@ -342,7 +344,9 @@ export default function Storefront() {
         setIdempotencyKey(crypto.randomUUID());
         setMessage("Revisá el importe y confirmá el envío a los comercios.");
       } else {
-        await request({ action: "orders", operation: "submit", quoteToken: quote.quoteToken, idempotencyKey }, accessToken);
+        await request({ action: "orders", operation: "submit", quoteToken: quote.quoteToken, idempotencyKey,
+          contactPhone: contactPhone.trim() || null }, accessToken);
+        setContactPhone("");
         setCart([]);
         setFulfillment({});
         setLocationMessage({});
@@ -636,7 +640,12 @@ export default function Storefront() {
                   <Link className="button" href={accountHref}>{session?.recovery ? "Completá la recuperación de tu cuenta" : "Ingresá para pedir"}</Link>
                 ) : (
                   <>
-                    <Link href="/cuenta?vista=telefono&next=%2Fcarrito">Verificar mi teléfono</Link>
+                    <label className="field">Teléfono para coordinar (opcional)
+                      <input type="tel" autoComplete="tel" placeholder="+54 9 …" maxLength={40}
+                        value={contactPhone} disabled={busy || submitUncertain}
+                        onChange={(event) => setContactPhone(event.target.value)} />
+                    </label>
+                    <p className="muted">Si lo dejás, se comparte con los comercios de este pedido.</p>
                     <button className="button" disabled={busy} type="submit">{busy ? "Procesando…" : submitUncertain ? "Reintentar el mismo envío" : quote ? "Enviar solicitudes" : "Revisar pedido"}</button>
                   </>
                 )}
@@ -671,6 +680,10 @@ export default function Storefront() {
                           <p>Productos: {formatMoney(order.subtotal)}</p>
                           {order.mode === "delivery" && <p>{formatDeliveryFee(order.delivery_fee)}</p>}
                           {order.reason && <p>{order.reason}</p>}
+                          {order.business_phone && /^\+[1-9][0-9]{1,14}$/.test(order.business_phone) && (
+                            <a className="button secondary" href={`https://wa.me/${order.business_phone.slice(1)}`}
+                              target="_blank" rel="noopener noreferrer">Coordinar por WhatsApp</a>
+                          )}
                           {order.status === "received" && order.proposal && (
                             <div className="market-order-proposal">
                               <h4>Cambios propuestos por el comercio</h4>
@@ -707,7 +720,7 @@ export default function Storefront() {
           {accessToken && (
             <details className="panel market-preferences">
               <summary>Preferencia de WhatsApp</summary>
-              <p className="muted">Podés elegir si querés recibir avisos de pedidos cuando este canal esté habilitado.</p>
+              <p className="muted">Los avisos automáticos requieren un teléfono verificado y estarán disponibles cuando se habilite el servicio.</p>
               <div className="market-preference-actions">
                 <button className="button secondary" disabled={consentBusy} onClick={() => updateConsent(true)}>Aceptar avisos</button>
                 <button className="button secondary" disabled={consentBusy} onClick={() => updateConsent(false)}>Desactivar avisos</button>

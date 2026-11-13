@@ -215,6 +215,7 @@ async function run() {
 
   const owner = await createAccount(ownerEmail)
   const other = await createAccount(fixtureEmail('other'))
+  const emailOnlyBuyer = await createAccount(fixtureEmail('email-only'))
   const admin = await createAccount(fixtureEmail('admin'))
   localSql("insert into dondepido.admin_roles (user_id) values ('" + admin.id + "');")
 
@@ -233,26 +234,26 @@ async function run() {
     assert.deepEqual(await onboarding(owner, 'profile.mine'), {
       profile: { firstName: 'Titular', lastName: 'Local' }, phone: null,
     })
+    await onboarding(emailOnlyBuyer, 'profile', { firstName: 'Cliente', lastName: 'Prueba' })
 
-    const ownerChallenge = await issueChallenge(owner, candidates[0].phone)
-    await onboarding(other, 'phone.verify', ownerChallenge, [400])
-    assert.equal(await onboarding(owner, 'phone.verify', ownerChallenge), 'verified')
-    assert.equal((await onboarding(owner, 'profile.mine')).phone, candidates[0].phone)
-    assert.equal((await onboarding(other, 'profile.mine')).phone, null)
-    await onboarding(owner, 'phone.verify', ownerChallenge, [410])
+    const buyerChallenge = await issueChallenge(other, candidates[0].phone)
+    await onboarding(owner, 'phone.verify', buyerChallenge, [400])
+    assert.equal(await onboarding(other, 'phone.verify', buyerChallenge), 'verified')
+    assert.equal((await onboarding(other, 'profile.mine')).phone, candidates[0].phone)
+    assert.equal((await onboarding(owner, 'profile.mine')).phone, null)
+    await onboarding(other, 'phone.verify', buyerChallenge, [410])
 
     const formattedDuplicate = '+1 (202) 555-01' + candidates[0].phone.slice(-2)
-    const duplicateChallenge = await issueChallenge(other, formattedDuplicate)
-    await onboarding(other, 'phone.verify', duplicateChallenge, [409])
+    const duplicateChallenge = await issueChallenge(owner, formattedDuplicate)
+    await onboarding(owner, 'phone.verify', duplicateChallenge, [409])
 
     // Advance only the test challenge timestamps to avoid waiting for the real cooldown.
     localSql("update dondepido.phone_challenges set issued_at = now() - interval '61 seconds'"
       + " where id = '" + duplicateChallenge.challengeId + "';")
-    const expiredChallenge = await issueChallenge(other, candidates[1].phone)
+    const expiredChallenge = await issueChallenge(owner, candidates[1].phone)
     localSql("update dondepido.phone_challenges set issued_at = now() - interval '11 minutes',"
       + " expires_at = now() - interval '1 minute' where id = '" + expiredChallenge.challengeId + "';")
-    await onboarding(other, 'phone.verify', expiredChallenge, [410])
-    await onboarding(other, 'phone.verify', await issueChallenge(other, candidates[1].phone))
+    await onboarding(owner, 'phone.verify', expiredChallenge, [410])
 
     const pending = await onboarding(owner, 'application.mine')
     assert.equal(pending.length, 1, 'The applicant must recover one application after a public retry')
@@ -270,10 +271,21 @@ async function run() {
     assert.ok(inbox.some((item) => item.id === applicationId && item.status === 'pending'),
       'The reinforced administrator must see the pending application')
     await onboarding(adminMfa, 'application.decide', approval)
+    await onboarding(admin, 'application.approved', {}, [403])
+    await onboarding(other, 'application.suspend', { applicationId, suspended: true }, [403])
+    const edit = { applicationId, email: owner.session.user.email, sector: 'gastronomia', cityId,
+      observation: 'Rubro corregido por administración' }
+    await onboarding(adminMfa, 'application.edit', edit)
+    const { items: approvals } = await onboarding(adminMfa, 'application.approved')
+    assert.ok(approvals.some(item => item.id === applicationId && item.sector_code === 'gastronomia'))
+    await onboarding(adminMfa, 'application.edit', { ...edit, sector: 'kioscos' })
 
     const logo = await onboarding(owner, 'logo.upload', { mimeType: 'image/png', base64: png })
     assert.ok(typeof logo === 'string' && logo.length > 0, 'Logo upload did not return an object key')
     const completion = { applicationId, name: 'Kiosco ficticio E2E', address: 'Calle de prueba 100', logo }
+    await onboarding(adminMfa, 'application.suspend', { applicationId, suspended: true })
+    await onboarding(owner, 'application.complete', completion, [409])
+    await onboarding(adminMfa, 'application.suspend', { applicationId, suspended: false })
     const otherLogo = await onboarding(other, 'logo.upload', { mimeType: 'image/png', base64: png })
     await onboarding(owner, 'application.complete', { ...completion, logo: otherLogo }, [400])
     await onboarding(other, 'application.complete', { ...completion, logo: otherLogo }, [404])
@@ -304,12 +316,25 @@ async function run() {
     assert.deepEqual(weekly, [{ weekday: 1, intervals: '{[540,780),[960,1200)}' }],
       'Repeating the hours update must retain one schedule for the local day')
 
-    await onboarding(owner, 'business.publish', publication)
+    await onboarding(owner, 'business.publish', publication, [409])
+    const contact = { applicationId, phone: '+12025550199', method: 'whatsapp', confirmed: true }
+    await onboarding(admin, 'application.verify_contact', contact, [403])
+    await onboarding(adminMfa, 'application.verify_contact', contact)
+    assert.equal((await onboarding(owner, 'business.mine'))[0].verified_contact, contact.phone)
+    await onboarding(owner, 'business.publish', { ...publication, expectedContact: '+12025550198' }, [409])
+    await onboarding(owner, 'business.publish', { ...publication, expectedContact: contact.phone })
 
     const [published] = await onboarding(owner, 'business.mine')
     assert.equal(published.publication_status, 'published')
     assert.equal(published.offers_pickup, true)
     assert.equal(published.offers_delivery, false)
+    await onboarding(adminMfa, 'application.edit', { ...edit, name: completion.name, address: completion.address })
+    assert.equal((await onboarding(owner, 'business.mine'))[0].sector_code, 'gastronomia')
+    await onboarding(adminMfa, 'application.edit', { ...edit, sector: 'kioscos', name: completion.name, address: completion.address })
+    await onboarding(adminMfa, 'application.suspend', { applicationId, suspended: true })
+    assert.equal((await onboarding(owner, 'business.mine'))[0].admin_hidden, true)
+    await onboarding(adminMfa, 'application.suspend', { applicationId, suspended: false })
+    assert.equal((await onboarding(owner, 'business.mine'))[0].admin_hidden, false)
     console.log('PASS: local signup, phone verification, commercial approval, idempotent registration and publication')
     if (process.argv.includes('--market')) {
       const market = async (account, action, fields = {}, expected = 200) => {
@@ -321,6 +346,12 @@ async function run() {
         assert.equal(result.status, expected, `${fields.operation ?? action}: ${payload.error?.code ?? 'respuesta'}`)
         return payload.data
       }
+      const visibleShop = () => market(null, 'browse', { businessId })
+      assert.ok((await visibleShop()).businesses.some(item => item.id === businessId))
+      await onboarding(adminMfa, 'application.suspend', { applicationId, suspended: true })
+      assert.equal((await visibleShop()).businesses.length, 0)
+      await onboarding(adminMfa, 'application.suspend', { applicationId, suspended: false })
+      assert.ok((await visibleShop()).businesses.some(item => item.id === businessId))
       const noticeCount = (id) => localRows(
         "select count(*)::integer as count from dondepido.order_notice_outbox where order_id = '"
           + checkedId(id, 'Invalid local order ID') + "';",
@@ -347,7 +378,7 @@ async function run() {
         assert.match(dispatchNotice(id), /Capturados: 0/)
         return message.Text
       }
-      const demo = await testMarket({ market, onboarding, owner, buyer: other, adminMfa, businessId, cityId, logo, noticeCount, verifyNotice })
+      const demo = await testMarket({ market, onboarding, owner, buyer: other, emailOnlyBuyer, adminMfa, businessId, cityId, logo, noticeCount, verifyNotice })
       if (process.argv.includes('--mobile-fixtures')) {
         const fixture = (account, aal) => ({
           access_token: account.token, refresh_token: account.session.refresh_token,
@@ -362,7 +393,8 @@ async function run() {
       }
     }
     if (process.argv.includes('--featured')) {
-      await testFeatured({ request, appOrigin, onboarding, ownerMfa: otherMfa, adminMfa, business: published, png })
+      const [currentBusiness] = await onboarding(owner, 'business.mine')
+      await testFeatured({ request, appOrigin, onboarding, ownerMfa: otherMfa, adminMfa, business: currentBusiness, png })
     }
   } finally {
     localSql("delete from dondepido.admin_roles where user_id = '" + admin.id + "';")

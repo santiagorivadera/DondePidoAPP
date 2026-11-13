@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 
-export async function testMarket({ market, onboarding, owner, buyer, adminMfa, businessId, cityId, logo, noticeCount, verifyNotice }) {
+export async function testMarket({ market, onboarding, owner, buyer, emailOnlyBuyer, adminMfa, businessId, cityId, logo, noticeCount, verifyNotice }) {
   const catalog = (account, operation, data, status) => market(account, 'catalog', { operation, ...data }, status)
   const orders = (account, operation, data, status) => market(account, 'orders', { operation, ...data }, status)
 
@@ -11,6 +11,9 @@ export async function testMarket({ market, onboarding, owner, buyer, adminMfa, b
   await onboarding(adminMfa, 'application.decide', {
     applicationId: requestId, decision: 'approved', cityId, reason: 'Prueba local',
   })
+  await onboarding(adminMfa, 'application.verify_contact', {
+    applicationId: requestId, phone: '+12025550199', method: 'call', confirmed: true,
+  })
   const kitchen = await onboarding(owner, 'application.complete', {
     applicationId: requestId, name: 'Rotisería ficticia E2E', address: 'Calle de prueba 200', logo,
   })
@@ -18,7 +21,7 @@ export async function testMarket({ market, onboarding, owner, buyer, adminMfa, b
     businessId: kitchen, hours: [{ weekday: 1, intervals: [[540, 780]] }],
   })
   await onboarding(owner, 'business.publish', {
-    businessId: kitchen, pickup: true, delivery: true, confirmPublicContact: true,
+    businessId: kitchen, pickup: true, delivery: true, confirmPublicContact: true, expectedContact: '+12025550199',
   })
   for (const id of [businessId, kitchen]) {
     await catalog(owner, 'reception', { businessId: id, acceptingOrders: true })
@@ -93,6 +96,19 @@ export async function testMarket({ market, onboarding, owner, buyer, adminMfa, b
   assert.equal(stats.counts.completed, 1)
   assert.equal(stats.counts.rejected, 0)
   assert.equal(stats.peakHour.count, 1)
+  const emailOnlyQuote = await orders(emailOnlyBuyer, 'quote', { items, fulfillment })
+  const emailOnly = await orders(emailOnlyBuyer, 'submit', {
+    quoteToken: emailOnlyQuote.quoteToken, idempotencyKey: randomUUID(), contactPhone: '+1 (202) 555-0196',
+  })
+  const contactOrder = (await orders(owner, 'inbox', { businessId: kitchen })).orders.find(
+    item => item.status === 'received' && item.customer_phone === '+12025550196',
+  )
+  assert.ok(contactOrder)
+  assert.equal(emailOnly.orders.length, 2)
+  await orders(owner, 'decide', { orderId: contactOrder.id, expectedVersion: contactOrder.version, decision: 'confirmed' })
+  const manualOrder = (await orders(emailOnlyBuyer, 'mine', {})).orders.find(item => item.id === contactOrder.id)
+  assert.equal(manualOrder.business_phone, '+12025550199')
+  assert.equal(noticeCount(contactOrder.id), 0)
   console.log('PASS: catálogo, promociones, retiro y entrega, aislamiento, reintento y decisiones independientes')
   return { kiosk: businessId, kitchen, label }
 }
