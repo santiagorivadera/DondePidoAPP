@@ -222,6 +222,13 @@ async function execute(actor: Actor, token: string, input: Record<string, unknow
                  b.admin_hidden, b.accepting_orders, b.offers_pickup, b.offers_delivery, b.delivery_fee,
                  b.relevance, b.control_version::text,
                  dondepido.business_verified_contact(b.id) as verified_contact,
+                 coalesce((
+                   select json_agg(json_build_object('weekday', h.weekday, 'intervals', (
+                     select json_agg(json_build_array(lower(span), upper(span)) order by lower(span))
+                     from unnest(h.opening_minutes) as slot(span)
+                   )) order by h.weekday)
+                   from dondepido.business_weekly_hours h where h.business_id = b.id
+                 ), '[]'::json) as weekly_hours,
                  b.created_at, m.role
           from dondepido.businesses as b
           join dondepido.business_memberships as m on m.business_id = b.id

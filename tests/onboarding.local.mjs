@@ -315,6 +315,15 @@ async function run() {
     )
     assert.deepEqual(weekly, [{ weekday: 1, intervals: '{[540,780),[960,1200)}' }],
       'Repeating the hours update must retain one schedule for the local day')
+    assert.deepEqual((await onboarding(owner, 'business.mine'))[0].weekly_hours, hours.hours)
+    localSql("update dondepido.businesses set publication_status = 'catalog_only', accepting_orders = false where id = '" + businessId + "';")
+    const catalogBeforeVerification = await request(appOrigin + '/api/market', {
+      body: { action: 'browse', businessId },
+    })
+    assert.equal(catalogBeforeVerification.status, 200)
+    const { data: preview } = await catalogBeforeVerification.json()
+    assert.equal(preview.businesses[0].id, businessId)
+    assert.equal(preview.businesses[0].accepting_orders, false)
 
     await onboarding(owner, 'business.publish', publication, [409])
     const contact = { applicationId, phone: '+12025550199', method: 'whatsapp', confirmed: true }

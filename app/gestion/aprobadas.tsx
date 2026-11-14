@@ -74,7 +74,8 @@ function ApprovedRow({ item, token, reference, refresh }: {
   const hasBusiness = item.business_id !== null;
   const expired = item.status === "expired";
   const status = expired ? "Vencida" : isSuspended ? "Suspendido" : !hasBusiness ? "Alta pendiente"
-    : item.publication_status === "published" ? "Visible" : "Borrador";
+    : item.publication_status === "catalog_only" ? "Catálogo visible"
+      : item.publication_status === "published" ? "Visible" : "Borrador";
 
   useEffect(() => {
     setSuspended(null);

@@ -40,6 +40,11 @@ type Business = ControlBusiness & {
   weekly_hours?: { weekday: number; intervals: [number, number][] }[];
 };
 
+function publicationLabel(status: string) {
+  if (status === "catalog_only") return "Catálogo visible";
+  return status === "published" ? "Publicado" : "Borrador";
+}
+
 const applicationsStatus: Record<string, string> = {
   pending: "Pendiente", approved: "Aprobada", rejected: "Rechazada",
   revoked: "Revocada", expired: "Vencida", consumed: "Completada",
@@ -305,7 +310,7 @@ function DecisionForm({ item, cities, token, refresh }: {
 
 function Controls({ item, token, refresh }: { item: ControlBusiness; token: string; refresh: () => void }) {
   return <details>
-    <summary>{item.name} · {item.admin_hidden ? "Oculto" : item.publication_status === "draft" ? "Borrador" : "Visible"}</summary>
+    <summary>{item.name} · {item.admin_hidden ? "Oculto" : publicationLabel(item.publication_status)}</summary>
     <ActionForm key={item.control_version} success="Controles guardados." submit={async (form) => {
       await requestApi("onboarding", { action: "business.controls", businessId: item.id, expectedVersion: item.control_version,
         hidden: form.has("hidden"), relevance: Number(valueOf(form, "relevance")), note: valueOf(form, "note") || null }, token);
@@ -323,7 +328,7 @@ function BusinessPanel({ business, token, refresh }: { business: Business; token
   return (
       <section className="panel" aria-labelledby="business-heading">
         <h2 id="business-heading">{business.name}</h2>
-        <p>{business.address} · {business.admin_hidden ? "Oculto por administración" : business.publication_status === "published" ? "Publicado" : "Borrador"}</p>
+        <p>{business.address} · {business.admin_hidden ? "Oculto por administración" : publicationLabel(business.publication_status)}</p>
         {business.role === "owner" && (
           <>
             <details>
@@ -331,7 +336,7 @@ function BusinessPanel({ business, token, refresh }: { business: Business; token
               <HoursForm businessId={business.id} token={token} savedHours={business.weekly_hours} />
             </details>
             <details>
-              <summary>{business.publication_status === "published" ? "Actualizar modalidades" : "Publicar ficha"}</summary>
+              <summary>{business.publication_status === "published" ? "Actualizar modalidades" : "Habilitar pedidos"}</summary>
               {!business.verified_contact ? (
                 <p>Administración debe validar el teléfono comercial por WhatsApp o llamada. Después, actualizá la ficha para publicar.</p>
               ) : <ActionForm key={business.verified_contact} success="Ficha publicada." submit={async (form) => {
@@ -365,13 +370,13 @@ function BusinessPanel({ business, token, refresh }: { business: Business; token
             </ActionForm>
           </details>
         )}
-        <ActionForm success="Recepción actualizada." submit={async () => {
+        {business.publication_status !== "catalog_only" && <ActionForm success="Recepción actualizada." submit={async () => {
           await requestApi("market", { action: "catalog", operation: "reception", businessId: business.id, acceptingOrders: !business.accepting_orders }, token);
           refresh();
         }}>
           <p>{business.accepting_orders ? "Recibiendo solicitudes" : "Recepción pausada"}</p>
           <FormButton>{business.accepting_orders ? "Pausar recepción" : "Activar recepción"}</FormButton>
-        </ActionForm>
+        </ActionForm>}
       </section>
   );
 }
